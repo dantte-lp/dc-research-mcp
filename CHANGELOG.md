@@ -1,5 +1,31 @@
 # Changelog
 
+## [Unreleased] — Sprint 2 (Embedding — ONNX CPU)
+
+### Added — Embedding
+
+- `IEmbedder` — public surface: `int Dimension`, `Task<float[][]> EmbedAsync(IReadOnlyList<string>, bool isQuery, CancellationToken)`; `IDisposable`.
+- `IPretokenizer` + `TokenizedBatch` — tokenizer surface decoupled from model format (SentencePiece / WordPiece / BPE); returns row-major int64 `InputIds` + `AttentionMask` with batch + seq dims.
+- `EmbeddingOptions` — model/tokenizer paths, dimension (384), max sequence (512), batch size (16 CPU-friendly default), `QueryPrefix`/`PassagePrefix` for the E5 contract (`"query: "` / `"passage: "`), optional GPU EP.
+- `Pooling` — `MeanPool(hidden, attentionMask, batch, seq, hidden)` with masked averaging, `L2NormalizeInPlace(span)` with zero-norm guard. Pure math, fully testable without an ONNX file.
+- `E5OnnxEmbedder` — XLM-RoBERTa-based pipeline (`input_ids` + `attention_mask` int64 → ONNX run → `last_hidden_state` → mean pool → L2 normalize); per-batch `Task.Run` for async, `IDisposable` releases the ORT session.
+- `scripts/download-models.ps1` — `hf download intfloat/multilingual-e5-small --include "*.onnx" "tokenizer.json" "sentencepiece.bpe.model" "config.json" ...` into `models/multilingual-e5-small/`; resumable + checksummed; replaces the deprecated `huggingface-cli`.
+
+### Tests
+
+- 8 `PoolingTests` (full-mask average, padding-ignored, multi-batch independence, all-zero-mask guard, L2 unit-vector, L2 zero-vector, argument validation for both shapes).
+
+### Verified
+
+- `dotnet build -c Release` — 0 warnings / 0 errors.
+- `dotnet test` — **17/17 passing** (6 Core + 8 Embedding + 1 Data + 1 Server + 1 E2E).
+- `dotnet format --verify-no-changes` — clean.
+
+### Known follow-ups (Sprint 2 add-on)
+
+- `IPretokenizer` concrete: SentencePiece reader for XLM-R / multilingual-e5 (`sentencepiece.bpe.model` + `tokenizer.json`). Slot the implementation behind the existing interface — `E5OnnxEmbedder` pipeline is ready to receive any conforming tokenizer.
+- Live `SkippableFact` for `E5OnnxEmbedder` end-to-end against a real downloaded model: skip when `models/multilingual-e5-small/model.onnx` is absent, run when present (uses the script above to bootstrap).
+
 ## [Unreleased] — Sprint 1 add-on (EF migrations + chunker)
 
 ### Added — Data
