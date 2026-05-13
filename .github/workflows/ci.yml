@@ -1,0 +1,220 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  # ─── 1. Build + unit tests (no Postgres) ──────────────────────────────────
+  build-and-unit-test:
+    name: build + unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: |
+            Directory.Packages.props
+            **/*.csproj
+      - name: Restore
+        run: dotnet restore dc-research-mcp.slnx
+      - name: Build (Release)
+        run: dotnet build dc-research-mcp.slnx -c Release --no-restore
+      - name: Unit tests (skip Data + E2E — they need Postgres)
+        run: |
+          dotnet test dc-research-mcp.slnx -c Release --no-build \
+            --logger 'trx;LogFileName=test-results.trx' \
+            --results-directory TestResults \
+            --filter 'FullyQualifiedName!~DcResearchMcp.Data.Tests&FullyQualifiedName!~DcResearchMcp.E2E'
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-unit
+          path: TestResults
+          retention-days: 14
+      - name: Upload analyzer SARIF
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: analyzers-sarif
+          path: "**/bin/Release/analyzers.sarif"
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # ─── 2. Integration tests (Postgres 18 + vchord_bm25) ─────────────────────
+  integration-test:
+    name: integration tests (Postgres)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: tensorchord/vchord-suite:pg18-latest
+        env:
+          POSTGRES_DB: dc_research
+          POSTGRES_USER: dc_research
+          POSTGRES_PASSWORD: dc_research
+          POSTGRES_INITDB_ARGS: --data-checksums --encoding=UTF-8 --locale=C.UTF-8
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U dc_research -d dc_research"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Apply init.sql to default database
+        run: |
+          export PGPASSWORD=dc_research
+          psql -h 127.0.0.1 -U dc_research -d dc_research -f docker/init.sql
+      - name: Restore + build
+        run: |
+          dotnet restore dc-research-mcp.slnx
+          dotnet build dc-research-mcp.slnx -c Release --no-restore
+      - name: Data integration tests
+        env:
+          DCRESEARCH_MCP_TEST_CS: Host=127.0.0.1;Port=5432;Database=dc_research_test;Username=dc_research;Password=dc_research
+        run: |
+          dotnet test tests/DcResearchMcp.Data.Tests/DcResearchMcp.Data.Tests.csproj \
+            -c Release --no-build --logger 'console;verbosity=normal'
+
+  # ─── 3. Format check ──────────────────────────────────────────────────────
+  format:
+    name: dotnet format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: dotnet format dc-research-mcp.slnx --verify-no-changes --severity info
+
+  # ─── 4. Markdown lint ─────────────────────────────────────────────────────
+  docs-lint:
+    name: docs lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install markdownlint-cli2
+        run: npm install --global markdownlint-cli2
+      - name: Lint Markdown
+        run: markdownlint-cli2 '**/*.md' '#node_modules' '#bin' '#obj'
+
+  # ─── 5. Semgrep (auto + security-audit + secrets) ─────────────────────────
+  semgrep:
+    name: semgrep
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep:latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Semgrep scan (auto rules, fail on blocking)
+        run: |
+          semgrep scan \
+            --config=auto \
+            --config=p/security-audit \
+            --config=p/secrets \
+            --error \
+            --no-git-ignore \
+            --include='*.cs' \
+            --include='*.yaml' \
+            --include='*.yml' \
+            --include='*.sql' \
+            --exclude='**/obj/**' \
+            --exclude='**/bin/**' \
+            --exclude='**/Migrations/*.Designer.cs' \
+            src/ docker/
+
+  # ─── 6. PVS-Studio (.plog per project, uploaded as artifact) ──────────────
+  pvs-studio:
+    name: pvs-studio (C#)
+    runs-on: ubuntu-latest
+    # Skip in forks/PRs that lack the license. Main pushes and dispatched
+    # runs that own the secrets get the full scan.
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Skip if license missing
+        id: precheck
+        env:
+          PVS_USER: ${{ secrets.PVS_USER }}
+          PVS_KEY: ${{ secrets.PVS_KEY }}
+        run: |
+          if [ -z "$PVS_USER" ] || [ -z "$PVS_KEY" ]; then
+            echo "PVS-Studio license secrets not set — skipping job."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Install PVS-Studio
+        if: steps.precheck.outputs.skip != 'true'
+        run: |
+          wget -q -O- https://files.pvs-studio.com/etc/pubkey.txt | sudo apt-key add -
+          sudo wget -q -O /etc/apt/sources.list.d/viva64.list \
+            https://files.pvs-studio.com/etc/viva64.list
+          sudo apt-get update
+          sudo apt-get install -y pvs-studio-dotnet
+      - name: Configure license
+        if: steps.precheck.outputs.skip != 'true'
+        env:
+          PVS_USER: ${{ secrets.PVS_USER }}
+          PVS_KEY: ${{ secrets.PVS_KEY }}
+        run: pvs-studio-dotnet credentials -u "$PVS_USER" -n "$PVS_KEY"
+      - name: Build
+        if: steps.precheck.outputs.skip != 'true'
+        run: dotnet build dc-research-mcp.slnx -c Release
+      - name: Analyze each project
+        if: steps.precheck.outputs.skip != 'true'
+        run: |
+          set -e
+          mkdir -p pvs-out
+          for proj in src/DcResearchMcp.*/DcResearchMcp.*.csproj; do
+            name=$(basename "$proj" .csproj)
+            pvs-studio-dotnet -t "$proj" -c Release -o "pvs-out/${name}.plog" || code=$?
+            # Bit-mask: 256 = findings, 1024 = license expiring soon — both tolerated.
+            if [ -n "${code:-}" ] && [ $((code & ~256 & ~1024)) -ne 0 ]; then
+              exit "$code"
+            fi
+            unset code
+          done
+      - name: Convert .plog → SARIF
+        if: steps.precheck.outputs.skip != 'true'
+        run: |
+          for plog in pvs-out/*.plog; do
+            plog-converter -t sarif -o "${plog%.plog}.sarif" "$plog" || true
+          done
+      - name: Upload .plog + .sarif artifacts
+        if: steps.precheck.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: pvs-studio-reports
+          path: pvs-out/
+          retention-days: 30

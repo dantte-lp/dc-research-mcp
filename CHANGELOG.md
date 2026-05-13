@@ -1,5 +1,29 @@
 # Changelog
 
+## [Unreleased] — Sprint 0.5 (quality stack)
+
+### Added
+
+- `.markdownlint.jsonc` + `.markdownlintignore` — strict markdownlint-cli2 ruleset (line length 120 for prose, code blocks and tables exempt; MD024/MD034/MD041 relaxed for CHANGELOG/index ergonomics).
+- `.githooks/pre-commit` — runs `dotnet format --verify-no-changes` against staged `*.cs` files; opt-out via `SKIP_FORMAT=1`. Enable per clone: `git config core.hooksPath .githooks`.
+- `CONTRIBUTING.md` — Conventional Commits 1.0.0 scope table (`core`/`data`/`embedding`/`server`/`cli`/`docker`/`tests`), quality-gate map, PVS-Studio local-run recipe, test layering.
+- `SECURITY.md` — supported versions table, GHSA reporting channel, severity → acknowledge/fix/disclosure SLAs, in-scope vs upstream surface, known-accepted risks (default `dc_research/dc_research/dc_research` dev creds — production MUST override; commercial standards text in corpus is a licensing matter, not a vulnerability).
+- `.github/dependabot.yml` — weekly NuGet + GitHub Actions, minor/patch bundled, major as separate PRs.
+- `.github/workflows/ci.yml` — six-job gate:
+  1. `build + unit tests` — `dotnet build -c Release` + unit-only test filter (excludes `Data.Tests` and `E2E`); uploads `test-results` and `analyzers.sarif`.
+  2. `integration tests (Postgres)` — service-container `tensorchord/vchord-suite:pg18-latest`, applies `docker/init.sql`, runs `Data.Tests` against `dc_research_test`.
+  3. `dotnet format` — `--verify-no-changes`.
+  4. `docs lint` — `markdownlint-cli2 '**/*.md'`.
+  5. `semgrep` — `--config=auto --config=p/security-audit --config=p/secrets --error`, scoped to `src/` + `docker/`, file types `*.cs`/`*.yaml`/`*.yml`/`*.sql`.
+  6. `pvs-studio (C#)` — installs `pvs-studio-dotnet`, scans each `src/DcResearchMcp.*` csproj, converts `.plog` → SARIF; gated on `PVS_USER`/`PVS_KEY` secrets (auto-skip when absent or on cross-fork PRs); tolerates exit bits 256 (findings present) and 1024 (license expiring).
+- `.github/workflows/security.yml` — CodeQL (csharp, `security-and-quality` queries; public-repo gated) + `actions/dependency-review-action` on PRs (`fail-on-severity: high`). Weekly cron Monday 06:00 UTC.
+
+### Verified
+
+- `dotnet build -c Release` — 0 warnings, 0 errors across 10 projects.
+- `dotnet test -c Release --no-build` — 5/5 passing (Core/Embedding/Data/Server/E2E scaffold tests).
+- `dotnet format --verify-no-changes` — exit 0 (style suggestions remain `info`-level only).
+
 ## [0.1.0] — 2026-05-13 — Sprint 0 (scaffolding)
 
 Initial scaffold for the .NET 10 + PostgreSQL + pgvector + vchord_bm25 + ONNX (CPU) hybrid-retrieval MCP server. No functional code yet — sets the build, packaging, and runtime container shape for the upcoming sprints.

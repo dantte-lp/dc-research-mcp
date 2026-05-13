@@ -1,0 +1,39 @@
+// markdownlint-cli2 configuration. Strict ruleset; explicit project overrides.
+// See https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md
+{
+  "default": true,
+
+  // Long URLs and code lines must be wrapped at the source level when
+  // practical, but a hard 120 limit catches accidental sprawl.
+  "MD013": {
+    "line_length": 120,
+    "code_blocks": false,
+    "tables": false,
+    "headings": false
+  },
+
+  // CHANGELOG sections under [Unreleased] reuse "### Verified" or
+  // "### Added" intentionally; the heading set is the contract, not unique.
+  "MD024": false,
+
+  // The first heading is the title; allow `#` to repeat the file name.
+  "MD025": {
+    "front_matter_title": "^\\s*title\\s*[:=]"
+  },
+
+  // Permit inline HTML used inside Mermaid diagrams (e.g. <br/>).
+  "MD033": {
+    "allowed_elements": ["br", "kbd", "sub", "sup"]
+  },
+
+  // Bare URLs are sometimes desirable in CHANGELOG link sections.
+  "MD034": false,
+
+  // First line need not be a heading — index files start with a paragraph.
+  "MD041": false,
+
+  // Compact Markdown tables (`|---|---|`) trigger persistent false positives
+  // against headers that have padding. The compact-with-padded-headers visual
+  // style is consistent across the project; we keep it.
+  "MD060": false
+}
