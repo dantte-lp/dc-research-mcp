@@ -1,5 +1,36 @@
 # Changelog
 
+## [Unreleased] — Sprint 1 add-on (EF migrations + chunker)
+
+### Added — Data
+
+- `src/DcResearchMcp.Data/DataSourceFactory.cs` — `NpgsqlDataSource` wired up for Pgvector (`UseVector()`).
+- `src/DcResearchMcp.Data/DesignTimeDbContextFactory.cs` — consumed by `dotnet ef migrations add / database update`; reads `DC_RESEARCH_PG_CONN`, falls back to local dev creds (`localhost:5435/dc_research/dc_research/dc_research`).
+- `Embedding` (`halfvec(384)`) column on `ChunkEntity` for `intfloat/multilingual-e5-small`; HNSW index `halfvec_cosine_ops` with `m=16`, `ef_construction=200`.
+- Server-side `CreatedAt DEFAULT now()`.
+- EF Core migrations:
+  - `20260513155017_Initial` — creates `chunks` table, all metadata indexes, the halfvec HNSW index, and the five Postgres extension annotations (`vector`, `vchord`, `vchord_bm25`, `pg_tokenizer`, `pg_trgm`).
+  - `20260513155207_AddBm25Column` — raw-SQL: adds `bm25v bm25vector` column, calls `tokenizer_catalog.create_custom_model_tokenizer_and_trigger` against `mixed_analyzer` (russian-stemmed Cyrillic + Latin acronyms passthrough — defined in `docker/init.sql`), creates `idx_chunks_bm25 USING bm25 (bm25v bm25_ops)`. Reversible `Down()` drops the trigger, tokenizer model, BM25 index, and the column.
+- `src/DcResearchMcp.Data/Migrations/.editorconfig` — suppresses CA1707/CA1825/CA1861/IDE0161/MA0005/MA0048/MA0051 on auto-generated EF code; marks the directory `generated_code = true`.
+
+### Added — Core (Chunking)
+
+- `Section` record (`H1`/`H2`/`H3`/`Body`).
+- `ChunkDraft` record (pre-DB chunk with text, index, headings, size).
+- `IChunker` interface.
+- `MarkdownChunker` — header-aware split by H1/H2/H3 (honours fenced code blocks), then recursive split by `\n\n` → `\n` → `. ` → `? ` → `! ` → `; ` → ` ` to fit `TargetChars`, with `OverlapChars` carry-over and `MinChunkChars` floor. Uses `[GeneratedRegex]` source generation.
+
+### Tests
+
+- `MarkdownChunkerTests` (6 tests): single short section → one chunk with headings; new H2 resets H3, keeps H1; `#` inside fenced code is not a heading; oversized section splits with overlap (verified char-budget + overlap presence); chunks below min drop.
+- `InternalsVisibleTo("DcResearchMcp.Core.Tests")` on the Core project so chunker internals (`SplitByHeaders`, `RecursiveSplit`) are testable directly.
+
+### Verified
+
+- `dotnet build -c Release` — 0 warnings, 0 errors across 12 projects (10 + 2 generated migration assemblies).
+- `dotnet test` — 10/10 passing (6 chunker + 4 scaffold).
+- `dotnet format --verify-no-changes` — clean.
+
 ## [Unreleased] — Sprint 1 starter (Core domain + Data context)
 
 ### Added

@@ -46,6 +46,17 @@ public sealed class DcResearchDbContext(DbContextOptions<DcResearchDbContext> op
             b.HasIndex(x => x.Category);
             b.HasIndex(x => x.Origin);
             b.HasIndex(x => x.PromptId);
+
+            b.Property(x => x.CreatedAt).HasDefaultValueSql("now()");
+
+            // halfvec(384) for multilingual-e5-small. HNSW with cosine distance.
+            // m=16/ef_construction=200 are the arista-mcp defaults; tuned per scale later.
+            b.Property(x => x.Embedding).HasColumnType("halfvec(384)");
+            b.HasIndex(x => x.Embedding)
+                .HasMethod("hnsw")
+                .HasOperators("halfvec_cosine_ops")
+                .HasStorageParameter("m", 16)
+                .HasStorageParameter("ef_construction", 200);
         });
     }
 }

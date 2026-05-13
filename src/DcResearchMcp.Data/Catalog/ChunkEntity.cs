@@ -1,9 +1,12 @@
+using Pgvector;
+
 namespace DcResearchMcp.Data.Catalog;
 
 /// <summary>
 /// EF Core entity mirroring <see cref="DcResearchMcp.Core.Catalog.Chunk"/>.
-/// Persisted in the <c>chunks</c> table; the dense embedding column and the
-/// vchord_bm25 column are attached via raw SQL migration (Sprint 1 add-on).
+/// Persisted in the <c>chunks</c> table; the <c>vchord_bm25</c> column is
+/// attached via raw-SQL migration (the tokenizer trigger is created via
+/// <c>tokenizer_catalog.create_custom_model_tokenizer_and_trigger</c>).
 /// </summary>
 public sealed class ChunkEntity
 {
@@ -46,6 +49,12 @@ public sealed class ChunkEntity
     /// <summary>Chunk length in characters (denormalised for faster faceting).</summary>
     public int SizeChars { get; init; }
 
-    /// <summary>Server-side timestamp of insertion (UTC).</summary>
+    /// <summary>
+    /// Dense embedding produced by <c>intfloat/multilingual-e5-small</c> (dim 384, halfvec).
+    /// Populated by the ingest pipeline; null on parent/skip rows.
+    /// </summary>
+    public HalfVector? Embedding { get; init; }
+
+    /// <summary>Server-side timestamp of insertion (UTC) — default <c>now()</c>.</summary>
     public DateTimeOffset CreatedAt { get; init; }
 }
