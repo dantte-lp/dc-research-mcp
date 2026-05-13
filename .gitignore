@@ -1,0 +1,22 @@
+bin/
+obj/
+.vs/
+*.user
+*.suo
+TestResults/
+coverage.*.xml
+/models/**
+!/models/README.md
+!/models/.gitkeep
+docker/.env
+docker/postgresql.conf
+dc-research-mcp.toml
+*.log
+
+# Claude Code per-user overrides stay out of git
+.claude/settings.local.json
+.claude/.last-test-result
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/DcResearchMcp.Core/DcResearchMcp.Core.csproj" />
+    <Project Path="src/DcResearchMcp.Embedding/DcResearchMcp.Embedding.csproj" />
+    <Project Path="src/DcResearchMcp.Data/DcResearchMcp.Data.csproj" />
+    <Project Path="src/DcResearchMcp.Server/DcResearchMcp.Server.csproj" />
+    <Project Path="src/DcResearchMcp.Cli/DcResearchMcp.Cli.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DcResearchMcp.Core.Tests/DcResearchMcp.Core.Tests.csproj" />
+    <Project Path="tests/DcResearchMcp.Embedding.Tests/DcResearchMcp.Embedding.Tests.csproj" />
+    <Project Path="tests/DcResearchMcp.Data.Tests/DcResearchMcp.Data.Tests.csproj" />
+    <Project Path="tests/DcResearchMcp.Server.Tests/DcResearchMcp.Server.Tests.csproj" />
+    <Project Path="tests/DcResearchMcp.E2E/DcResearchMcp.E2E.csproj" />
+  </Folder>
+</Solution>

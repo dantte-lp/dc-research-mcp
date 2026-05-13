@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ModelContextProtocol" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DcResearchMcp.Core\DcResearchMcp.Core.csproj" />
+    <ProjectReference Include="..\DcResearchMcp.Data\DcResearchMcp.Data.csproj" />
+    <ProjectReference Include="..\DcResearchMcp.Embedding\DcResearchMcp.Embedding.csproj" />
+  </ItemGroup>
+
+</Project>

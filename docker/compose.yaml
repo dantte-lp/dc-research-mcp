@@ -1,0 +1,43 @@
+services:
+  postgres:
+    build:
+      context: .
+      dockerfile: Containerfile
+    image: dc-research-mcp-postgres:18
+    container_name: dc-research-mcp-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: dc_research
+      POSTGRES_USER: dc_research
+      POSTGRES_PASSWORD: dc_research
+      POSTGRES_INITDB_ARGS: --data-checksums --encoding=UTF-8 --locale=C.UTF-8
+      PGDATA: /var/lib/postgresql/18/data
+    ports:
+      # 0.0.0.0 rather than 127.0.0.1: on Windows/Podman (WSL2 backend, UserModeNetworking=false)
+      # a 127.0.0.1 bind only exposes the port inside the podman-machine WSL distro, unreachable
+      # from the Windows host. Binding to 0.0.0.0 inside WSL2 is forwarded back to Windows localhost
+      # via WSL interop. The dev container still only listens on the loopback exposed by WSL.
+      - "0.0.0.0:5435:5432"
+    volumes:
+      - dc-research-pgdata:/var/lib/postgresql/18/data
+    command: >-
+      postgres
+      -c shared_preload_libraries=vector,vchord,vchord_bm25,pg_tokenizer
+      -c max_connections=20
+      -c shared_buffers=2GB
+      -c effective_cache_size=8GB
+      -c work_mem=256MB
+      -c maintenance_work_mem=4GB
+      -c max_wal_size=4GB
+      -c wal_buffers=64MB
+      -c io_method=worker
+      -c io_workers=3
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dc_research -d dc_research"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  dc-research-pgdata:

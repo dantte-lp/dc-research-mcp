@@ -1,0 +1,8 @@
+<Project>
+  <Import Project="..\Directory.Build.props" />
+  <PropertyGroup>
+    <!-- Test member names use Given_When_Then. CA1707 (no underscores) doesn't apply to tests.
+         CA1711, MA0004, MA0051 also relaxed for test ergonomics. -->
+    <NoWarn>$(NoWarn);CA1707;CA1711;MA0004;MA0051</NoWarn>
+  </PropertyGroup>
+</Project>
