@@ -1,5 +1,25 @@
 # Changelog
 
+## [Unreleased] — Sprint 1 starter (Core domain + Data context)
+
+### Added
+
+- `src/DcResearchMcp.Core/Catalog/Origin.cs` — `Origin` enum (Research / TechSpec / Overview / Standard / Vendor), mirrors the indexer's source roots.
+- `src/DcResearchMcp.Core/Catalog/KnownCategories.cs` — canonical discipline strings (A-strategy … J-ai-specific, _aggregated, PRES-presentation-design, tech-spec, overview, intl-standards, uz-standards, vendor, general), `All` set for validation, `IsKnown(string)`.
+- `src/DcResearchMcp.Core/Catalog/DocumentMetadata.cs` — sealed record with `SourceFile` / `Origin` / `Category` / `LlmSource` / `PromptId` / `SizeBytes` / `LastModified`.
+- `src/DcResearchMcp.Core/Catalog/Chunk.cs` — sealed record (Id, Text, Document, ChunkIndex, H1/H2/H3); `Id` is SHA-256-derived and content-stable across re-runs.
+- `src/DcResearchMcp.Core/Chunking/ChunkingOptions.cs` — record with `TargetChars` (2000) / `OverlapChars` (320) / `MinChunkChars` (200).
+- `src/DcResearchMcp.Data/Catalog/ChunkEntity.cs` — EF Core POCO mirroring `Core.Catalog.Chunk` plus `CreatedAt` / `SizeChars` / `ContentId` (denormalised facets for fast filtering).
+- `src/DcResearchMcp.Data/DcResearchDbContext.cs` — EF Core 9 DbContext with primary constructor; declares Postgres extensions (`vector`, `vchord`, `vchord_bm25`, `pg_tokenizer`, `pg_trgm`); maps `chunks` table with unique index on `ContentId`, secondary indexes on `SourceFile` / `Category` / `Origin` / `PromptId`; column lengths capped (HasMaxLength).
+
+Embedding column `embedding vector(384)` and `vchord_bm25` bm25v column will be attached via raw-SQL migration in the Sprint 1 add-on (EF migrations cannot infer Pgvector + vchord_bm25 mappings from attributes alone).
+
+### Verified
+
+- `dotnet build -c Release` — 0 warnings, 0 errors across 10 projects after fix.
+- `dotnet format --verify-no-changes` — clean (rewrote `dotnet new console` `Program.cs` stubs as LF + UTF-8 no-BOM after analyzer flagged ENDOFLINE/CHARSET).
+- `dotnet test` — 5/5 passing.
+
 ## [Unreleased] — Sprint 0.5 (quality stack)
 
 ### Added
