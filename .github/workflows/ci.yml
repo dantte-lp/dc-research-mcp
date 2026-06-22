@@ -47,14 +47,14 @@ jobs:
             --filter 'FullyQualifiedName!~DcResearchMcp.Data.Tests&FullyQualifiedName!~DcResearchMcp.E2E'
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-results-unit
           path: TestResults
           retention-days: 14
       - name: Upload analyzer SARIF
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: analyzers-sarif
           path: "**/bin/Release/analyzers.sarif"
@@ -213,7 +213,7 @@ jobs:
           done
       - name: Upload .plog + .sarif artifacts
         if: steps.precheck.outputs.skip != 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pvs-studio-reports
           path: pvs-out/
