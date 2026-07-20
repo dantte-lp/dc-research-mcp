@@ -20,7 +20,7 @@
     <PackageVersion Include="Microsoft.Extensions.Configuration.UserSecrets" Version="10.0.6" />
 
     <!-- EF Core 9 (Pgvector.EFCore 0.3.0 requires EF 9) -->
-    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="9.0.15" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.10" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.15" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.15" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
