@@ -5,7 +5,7 @@
   </PropertyGroup>
   <ItemGroup>
     <!-- MCP -->
-    <PackageVersion Include="ModelContextProtocol" Version="1.2.0" />
+    <PackageVersion Include="ModelContextProtocol" Version="2.0.0" />
     <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="1.2.0" />
 
     <!-- Microsoft.Extensions stack -->
